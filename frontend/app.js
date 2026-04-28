@@ -1,5 +1,5 @@
-// 🔧 Change this to your Render URL after deployment
-const API_BASE = 'http://localhost:8000';
+// ✅ Live Render backend
+const API_BASE = 'https://ai-career-copilot-ychb.onrender.com';
 
 let resumeReady = false;
 
