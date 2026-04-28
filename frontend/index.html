@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Career Copilot — GenAI + RAG</title>
+  <meta name="description" content="AI-powered career assistant using RAG, resume analysis, and interview simulation." />
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<div class="app-bg"></div>
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">✦</div>
+      <div>
+        <div class="logo-title">AI Career Copilot</div>
+        <div class="logo-sub">GenAI · RAG · FastAPI</div>
+      </div>
+    </div>
+
+    <button class="nav-btn active" data-view="chat" onclick="switchView('chat')">
+      <span class="nav-icon">🤖</span>
+      <span class="nav-label">AI Copilot</span>
+      <span class="nav-badge">RAG</span>
+    </button>
+    <button class="nav-btn" data-view="upload" onclick="switchView('upload')">
+      <span class="nav-icon">📄</span>
+      <span class="nav-label">Resume</span>
+    </button>
+    <button class="nav-btn" data-view="analysis" onclick="switchView('analysis')">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Skill Gap</span>
+    </button>
+    <button class="nav-btn" data-view="interview" onclick="switchView('interview')">
+      <span class="nav-icon">🎯</span>
+      <span class="nav-label">Interview</span>
+    </button>
+
+    <div class="sidebar-footer">
+      <div class="status-dot">
+        <span id="status-indicator"></span>
+        <span id="status-text">No resume loaded</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="top-bar">
+      <div>
+        <div class="top-bar-title" id="view-title">AI Career Copilot</div>
+        <div class="top-bar-sub" id="view-sub">Context-aware chat powered by RAG + GPT</div>
+      </div>
+      <div class="top-bar-pill">🟢 GPT-3.5 · FAISS</div>
+    </div>
+
+    <!-- Chat View -->
+    <div class="view active" id="view-chat">
+      <div class="chat-messages" id="chat-messages">
+        <div class="empty-chat" id="empty-chat">
+          <div class="empty-icon">🤖</div>
+          <h2>AI Career Copilot</h2>
+          <p>Upload your resume first, then ask anything about your experience, skills, or career goals.</p>
+          <div class="suggestion-grid" id="suggestion-grid" style="display:none">
+            <button class="suggestion-chip" onclick="sendSuggestion(this)">What skills do I have?</button>
+            <button class="suggestion-chip" onclick="sendSuggestion(this)">What are my strongest projects?</button>
+            <button class="suggestion-chip" onclick="sendSuggestion(this)">What tech stack am I proficient in?</button>
+            <button class="suggestion-chip" onclick="sendSuggestion(this)">How many years of experience?</button>
+          </div>
+          <p id="no-resume-hint" style="font-size:12px;color:var(--warning);margin-top:8px">
+            ⚠️ Please upload your resume in the <strong>Resume</strong> tab first.
+          </p>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="chat-input-wrap">
+          <textarea id="chat-input" class="chat-input" rows="1"
+            placeholder="Upload a resume first to chat…"
+            onkeydown="handleChatKey(event)"
+            oninput="autoResize(this)"
+            disabled></textarea>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="chat-hint">⏎ Enter to send · Shift+Enter for newline</div>
+      </div>
+    </div>
+
+    <!-- Upload View -->
+    <div class="view" id="view-upload">
+      <div class="upload-wrap">
+        <div class="dropzone" id="dropzone"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)"
+          onclick="document.getElementById('file-input').click()">
+          <input type="file" id="file-input" accept=".pdf" onchange="handleFileSelect(event)" />
+          <div class="dropzone-icon" id="drop-icon">📄</div>
+          <h3>Upload Your Resume</h3>
+          <p>Drag & drop your PDF here, or click to browse</p>
+          <p style="margin-top:8px;font-size:12px;color:var(--text-muted)">PDF · Max 10 MB</p>
+        </div>
+        <div id="upload-progress" style="display:none" class="glass-card" style="padding:20px 24px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:13px">Processing resume…</span>
+            <span style="font-size:13px;color:var(--accent-primary)" id="progress-pct">0%</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+          <p style="font-size:12px;color:var(--text-muted);margin-top:8px">Parsing PDF → Chunking → Building FAISS index…</p>
+        </div>
+        <div id="upload-error" class="error-banner" style="display:none"></div>
+        <div id="upload-success" style="display:none">
+          <div class="upload-success-box">
+            <span style="font-size:32px">✅</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px">Resume indexed successfully!</div>
+              <div style="font-size:13px;color:var(--text-secondary)" id="upload-filename"></div>
+            </div>
+          </div>
+          <div class="upload-stats">
+            <div class="glass-card stat-card"><div class="stat-num" id="stat-chunks">—</div><div class="stat-label">Text Chunks</div></div>
+            <div class="glass-card stat-card"><div class="stat-num" id="stat-words">—</div><div class="stat-label">Words Indexed</div></div>
+            <div class="glass-card stat-card"><div class="stat-num">✓</div><div class="stat-label">FAISS Ready</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analysis View -->
+    <div class="view" id="view-analysis">
+      <div class="analysis-wrap">
+        <div id="analysis-no-resume" class="error-banner" style="display:none">⚠️ Upload your resume in the <strong>Resume</strong> tab first.</div>
+        <div class="glass-card" style="padding:20px 24px">
+          <div class="section-title">Job Description (optional)</div>
+          <div class="section-sub" style="margin-bottom:12px">Paste a JD for targeted match score analysis</div>
+          <textarea class="input-field" id="jd-input" rows="5" placeholder="Paste job description here…" style="resize:vertical"></textarea>
+          <div style="margin-top:14px;display:flex;justify-content:flex-end">
+            <button class="btn-primary" id="analyze-btn" onclick="runAnalysis()">📊 Run Analysis</button>
+          </div>
+        </div>
+        <div id="analysis-error" class="error-banner" style="display:none"></div>
+        <div id="analysis-results" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- Interview View -->
+    <div class="view" id="view-interview">
+      <div class="interview-wrap">
+        <div id="interview-no-resume" class="error-banner" style="display:none">⚠️ Upload your resume in the <strong>Resume</strong> tab first.</div>
+        <div class="glass-card" style="padding:20px 24px">
+          <div class="section-title">Interview Simulator</div>
+          <div class="section-sub" style="margin-bottom:16px">AI-generated questions tailored to your resume</div>
+          <div class="interview-controls">
+            <select class="select-field" id="topic-select">
+              <option value="technical">⚙️ Technical</option>
+              <option value="behavioral">🤝 Behavioral</option>
+              <option value="system design">🏗️ System Design</option>
+              <option value="AI/ML">🧠 AI / ML</option>
+              <option value="general">💼 General HR</option>
+            </select>
+            <select class="select-field" id="num-select">
+              <option value="3">3 Questions</option>
+              <option value="5" selected>5 Questions</option>
+              <option value="7">7 Questions</option>
+              <option value="10">10 Questions</option>
+            </select>
+            <button class="btn-primary" id="interview-btn" onclick="generateInterview()" style="margin-left:auto">🎯 Generate Questions</button>
+          </div>
+        </div>
+        <div id="interview-error" class="error-banner" style="display:none"></div>
+        <div id="interview-results"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
