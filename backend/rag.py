@@ -1,14 +1,32 @@
 import os
 import json
-from typing import Optional
+from typing import List, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
 
+import google.generativeai as genai
+from langchain_core.embeddings import Embeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
+
+
+class GeminiEmbeddings(Embeddings):
+    """Direct google-generativeai embeddings — uses v1 API, avoids v1beta issues."""
+    def __init__(self, api_key: str, model: str = "models/text-embedding-004"):
+        genai.configure(api_key=api_key)
+        self.model = model
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return [
+            genai.embed_content(model=self.model, content=t)["embedding"]
+            for t in texts
+        ]
+
+    def embed_query(self, text: str) -> List[float]:
+        return genai.embed_content(model=self.model, content=text)["embedding"]
 
 # Use GOOGLE_API_KEY from environment
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -24,11 +42,8 @@ class RAGSystem:
             google_api_key=GOOGLE_API_KEY,
             temperature=0.4
         )
-        # Use Google's embedding model
-        self._embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
-            google_api_key=GOOGLE_API_KEY
-        )
+        # Use direct google-generativeai embeddings (v1 API — no v1beta issues)
+        self._embeddings = GeminiEmbeddings(api_key=GOOGLE_API_KEY)
         self._vector_store = None
         self.doc_metadata = {}
 
