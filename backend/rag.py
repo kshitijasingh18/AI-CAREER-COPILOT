@@ -26,7 +26,7 @@ class RAGSystem:
         )
         # Use Google's embedding model
         self._embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
+            model="models/text-embedding-004",
             google_api_key=GOOGLE_API_KEY
         )
         self._vector_store = None
