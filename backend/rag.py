@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import google.generativeai as genai
+from google import genai as google_genai
 from langchain_core.embeddings import Embeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -14,19 +14,19 @@ from langchain_community.vectorstores import FAISS
 
 
 class GeminiEmbeddings(Embeddings):
-    """Direct google-generativeai embeddings — uses v1 API, avoids v1beta issues."""
-    def __init__(self, api_key: str, model: str = "models/text-embedding-004"):
-        genai.configure(api_key=api_key)
+    """Uses new google-genai SDK (v1 API) — fixes v1beta NOT_FOUND error."""
+    def __init__(self, api_key: str, model: str = "text-embedding-004"):
+        self.client = google_genai.Client(api_key=api_key)
         self.model = model
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         return [
-            genai.embed_content(model=self.model, content=t)["embedding"]
+            self.client.models.embed_content(model=self.model, contents=t).embeddings[0].values
             for t in texts
         ]
 
     def embed_query(self, text: str) -> List[float]:
-        return genai.embed_content(model=self.model, content=text)["embedding"]
+        return self.client.models.embed_content(model=self.model, contents=text).embeddings[0].values
 
 # Use GOOGLE_API_KEY from environment
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
