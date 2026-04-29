@@ -21,7 +21,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-rag = RAGSystem()
+# Lazy init — prevents crash if GOOGLE_API_KEY is missing at startup
+try:
+    rag = RAGSystem()
+except Exception as e:
+    print(f"⚠️  RAGSystem init failed: {e}")
+    rag = None
 
 
 # ─── Request/Response Models ───────────────────────────────────────────────────
@@ -57,6 +62,8 @@ async def root():
 
 @app.get("/health")
 async def health():
+    if rag is None:
+        return {"status": "error", "detail": "GOOGLE_API_KEY not configured on server"}
     return {"status": "healthy", "resume_loaded": rag.is_ready()}
 
 
@@ -65,6 +72,8 @@ async def health():
 @app.post("/upload")
 async def upload_resume(file: UploadFile = File(...)):
     """Upload a PDF resume and build the RAG vector store."""
+    if rag is None:
+        raise HTTPException(status_code=503, detail="Server misconfigured: GOOGLE_API_KEY missing.")
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
@@ -94,6 +103,8 @@ async def upload_resume(file: UploadFile = File(...)):
 @app.post("/ask", response_model=ChatResponse)
 async def ask(request: ChatRequest):
     """Ask the AI a question about the uploaded resume."""
+    if rag is None:
+        raise HTTPException(status_code=503, detail="Server misconfigured: GOOGLE_API_KEY missing.")
     if not rag.is_ready():
         raise HTTPException(
             status_code=400,
@@ -115,6 +126,8 @@ async def ask(request: ChatRequest):
 @app.post("/analyze")
 async def analyze_resume(request: AnalysisRequest):
     """Analyze the resume against a job description and return skill gaps + match score."""
+    if rag is None:
+        raise HTTPException(status_code=503, detail="Server misconfigured: GOOGLE_API_KEY missing.")
     if not rag.is_ready():
         raise HTTPException(
             status_code=400,
@@ -133,6 +146,8 @@ async def analyze_resume(request: AnalysisRequest):
 @app.post("/interview")
 async def generate_interview_questions(request: InterviewRequest):
     """Generate tailored interview questions based on the resume."""
+    if rag is None:
+        raise HTTPException(status_code=503, detail="Server misconfigured: GOOGLE_API_KEY missing.")
     if not rag.is_ready():
         raise HTTPException(
             status_code=400,
