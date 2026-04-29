@@ -37,8 +37,11 @@ class RAGSystem:
         if not GOOGLE_API_KEY:
             raise ValueError("GOOGLE_API_KEY not found in environment variables")
 
-        # Single client for both LLM and embeddings — pure google-genai (v1 API)
-        self._client = google_genai.Client(api_key=GOOGLE_API_KEY)
+        # Force v1 API — text-embedding-004 is NOT available on v1beta (the default)
+        self._client = google_genai.Client(
+            api_key=GOOGLE_API_KEY,
+            http_options={"api_version": "v1"}
+        )
         self._embeddings = GeminiEmbeddings(client=self._client)
         self._vector_store = None
         self.doc_metadata = {}
